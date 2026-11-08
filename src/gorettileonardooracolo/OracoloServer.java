@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -28,31 +29,20 @@ public class OracoloServer {
 
     // volatile fa vedere a tutti i thread quando è stato chiesto di chiudere il server.
     private static volatile boolean chiusuraRichiesta;
-
-    // Queste sono le frasi che può dire ogni personalità.
-    private static final String[] FRASI_ORACOLO = {
-        "Vedo un cambiamento importante nel tuo futuro.",
-        "Una nuova opportunità si presenterà presto.",
-        "Il tuo cammino sarà chiaro se saprai avere pazienza."
-    };
-
-    private static final String[] FRASI_CHIROMANTE = {
-        "Le carte mostrano il Sole: ti aspettano giorni luminosi.",
-        "La Ruota della Fortuna annuncia un cambiamento.",
-        "L'Eremita ti consiglia di ascoltare te stesso."
-    };
-
-    private static final String[] FRASI_MAGO = {
-        "Puff! Una scintilla magica annuncia un futuro luminoso.",
-        "Le rune girano nell'aria: la risposta è forse!",
-        "Dal fumo appare un indizio: riprova domani."
-    };
+    private static Map<String, List<String>> risposteBot;
 
     /**
      * Avvio il server e affido ogni nuova connessione a un thread separato.
      */
     public static void main(String[] args) {
         chiusuraRichiesta = false;
+
+        try {
+            risposteBot = CatalogoRisposte.carica();
+        } catch (IOException e) {
+            System.err.println("Impossibile caricare le risposte dei bot: " + e.getMessage());
+            return;
+        }
 
         try (ServerSocket server = new ServerSocket(GorettiLeonardoOracolo.PORTA)) {
             System.out.println("OracoloServer in ascolto sulla porta " + GorettiLeonardoOracolo.PORTA);
@@ -206,16 +196,13 @@ public class OracoloServer {
          * Pesco una frase a caso tra quelle della personalità attiva.
          */
         private String scegliRisposta() {
-            String[] frasi = FRASI_ORACOLO;
-
-            if ("Chiromante".equals(persona)) {
-                frasi = FRASI_CHIROMANTE;
-            } else if ("Mago".equals(persona)) {
-                frasi = FRASI_MAGO;
+            List<String> frasi = risposteBot.get(persona);
+            if (frasi == null || frasi.isEmpty()) {
+                throw new IllegalStateException("Nessuna risposta configurata per " + persona + ".");
             }
 
-            int indice = casuale.nextInt(frasi.length);
-            return frasi[indice];
+            int indice = casuale.nextInt(frasi.size());
+            return frasi.get(indice);
         }
     }
 }
